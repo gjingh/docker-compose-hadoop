@@ -1,0 +1,130 @@
+version: "3"
+
+services:
+  namenode:
+    image: zgj2022/hadoop-namenode:v1
+    container_name: eoi-common-hadoop-namenode
+    hostname: namenode
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+    ports:
+      - '50070:50070'
+    environment:
+      - CLUSTER_NAME=test
+    env_file:
+      - ./hadoop.env
+
+  datanode1:
+    image: zgj2022/hadoop-datanode:v1
+    container_name: eoi-common-hadoop-datanode1
+    hostname: datanode1
+    ports:
+      - '50075:50075'
+    volumes:
+      - hadoop_datanode1:/hadoop/dfs/data
+    environment:
+      SERVICE_PRECONDITION: "namenode:50070"
+    env_file:
+      - ./hadoop.env
+  
+  datanode2:
+    image: zgj2022/hadoop-datanode:v1
+    container_name: eoi-common-hadoop-datanode2
+    hostname: datanode2
+    volumes:
+      - hadoop_datanode2:/hadoop/dfs/data
+    environment:
+      SERVICE_PRECONDITION: "namenode:50070"
+    env_file:
+      - ./hadoop.env
+  
+  resourcemanager:
+    image: zgj2022/hadoop-resourcemanager:v1
+    container_name: eoi-common-hadoop-resourcemanager
+    hostname: resourcemanager
+    ports:
+      - '8088:8088'
+    volumes:
+      - hadoop_resourcemanager:/etc/hadoop/
+    environment:
+      SERVICE_PRECONDITION: "namenode:50070 datanode1:50075"
+    env_file:
+      - ./hadoop.env
+
+  nodemanager1:
+    image: zgj2022/hadoop-nodemanager:v1
+    container_name: eoi-common-hadoop-nodemanager1
+    hostname: nodemanager1
+    volumes:
+      - hadoop_nodemanager1:/etc/hadoop/
+    environment:
+      SERVICE_PRECONDITION: "namenode:50070 datanode1:50075 datanode2:50075 resourcemanager:8088"
+    env_file:
+      - ./hadoop.env
+
+  nodemanager2:
+    image: zgj2022/hadoop-nodemanager:v1
+    container_name: eoi-common-hadoop-nodemanager2
+    hostname: nodemanager2
+    volumes:
+      - hadoop_nodemanager2:/etc/hadoop/
+    environment:
+      SERVICE_PRECONDITION: "namenode:50070 datanode1:50075 datanode2:50075 resourcemanager:8088"
+    env_file:
+      - ./hadoop.env
+
+  historyserver:
+    image: zgj2022/hadoop-historyserver:v1
+    container_name: eoi-common-hadoop-historyserver
+    hostname: historyserver
+    environment:
+      SERVICE_PRECONDITION: "namenode:50070 datanode1:50075 datanode2:50075 resourcemanager:8088"
+    volumes:
+      - hadoop_historyserver:/hadoop/yarn/timeline
+    env_file:
+      - ./hadoop.env
+
+  hive-server:
+    image: zgj2022/hadoop-hive:v1
+    container_name: eoi-common-hive-server
+    hostname: hive-server
+    depends_on:
+      - namenode
+      - datanode1
+    env_file:
+      - ./hadoop-hive.env
+    environment:
+      HIVE_CORE_CONF_javax_jdo_option_ConnectionURL: "jdbc:postgresql://hive-metastore/metastore"
+      SERVICE_PRECONDITION: "hive-metastore:9083"
+    ports:
+      - "10000:10000"
+      - "10002:10002"
+
+  hive-metastore:
+    image: zgj2022/hadoop-hive:v1
+    container_name: eoi-common-hive-metastore
+    hostname: hive-metastore
+    env_file:
+      - ./hadoop-hive.env
+    command: /opt/hive/bin/hive --service metastore 
+    environment:
+      SERVICE_PRECONDITION: "namenode:50070 datanode1:50075 datanode2:50075 hive-metastore-postgresql:5432"
+    ports:
+      - "9083:9083"
+
+  hive-metastore-postgresql:
+    image: zgj2022/hadoop-hive-pg:v1
+    container_name: eoi-common-hive-metastore-postgresql
+    hostname: hive-metastore-postgresql
+    ports:
+      - '5432:5432'
+
+  
+volumes:
+  hadoop_namenode:
+  hadoop_datanode1:
+  hadoop_datanode2:
+  hadoop_nodemanager1:
+  hadoop_nodemanager2:
+  hadoop_resourcemanager:
+  hadoop_historyserver:

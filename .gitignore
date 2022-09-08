@@ -1,0 +1,6 @@
+data/
+base/*.gz
+hive-base/*.gz
+/*.gz
+
+
